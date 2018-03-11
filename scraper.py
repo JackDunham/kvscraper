@@ -5,10 +5,14 @@ import binascii
 import sys
 from time import sleep
 import io
+import time
 
 username = sys.argv[1]
 password = sys.argv[2]
 songlist = sys.argv[3]
+
+dl_start_timeout_s = 30
+max_retries = 3
 
 # init download folder
 dl_folder = 'kvscraper_' + binascii.b2a_hex(os.urandom(8))
@@ -71,29 +75,42 @@ def get_song(driver, songpath):
         # locate DL button and click it
         dl = driver.find_element_by_class_name('download')
         existing_files = os.listdir(downloads)
-        dl.click()
 
-        eventual_directory_name = None
-        # wait for DL to complete
-        print 'stop here'
-        newfile = ''
-        while True:
-            sleep(0.05)
-            newfiles = os.listdir(downloads)
+        numTries = 0
+        finished_download = False
+        while numTries < max_retries and not finished_download:
+            dl.click()
+
+            eventual_directory_name = None
+            # wait for DL to complete
             newfile = ''
-            if len(newfiles) == (len(existing_files) + 1):
-                newfile = [x for x in newfiles if x not in existing_files][0]
-            if newfile.endswith('.mp3'):
-                break
 
-        if newfile is not None and newfile.endswith('.mp3'):
-            os.rename(os.path.join(downloads, newfile), os.path.join(downloads, instruments[j] + '.mp3'))
-            if eventual_directory_name is None:
-                eventual_directory_name = newfile[:-4]
+            timestart = time.time()
+            dl_started = False
+            while True:
+                sleep(0.05)
+                if (time.time() - timestart > dl_start_timeout_s) and not dl_started:
+                    break
+                newfiles = os.listdir(downloads)
+                if len(newfiles) == (len(existing_files) + 1):
+                    newfile = [x for x in newfiles if x not in existing_files][0]
+                if newfile.endswith('.mp3'):
+                    break
+                elif newfile.endswith('.crdownload'):
+                    dl_started = True
 
-        # close modal dialog
-        diag_close = driver.find_element_by_class_name('ui-dialog-titlebar-close')
-        diag_close.click()
+            if newfile == '':
+                numTries += 1
+            elif newfile.endswith('.mp3'):
+                os.rename(os.path.join(downloads, newfile), os.path.join(downloads, instruments[j] + '.mp3'))
+                if eventual_directory_name is None:
+                    eventual_directory_name = newfile[:-4]
+                finished_download = True
+
+            # close modal dialog
+            diag_close = driver.find_element_by_class_name('ui-dialog-titlebar-close')
+            diag_close.click()
+
         # re-mute track "j"
         mute.click()
 
