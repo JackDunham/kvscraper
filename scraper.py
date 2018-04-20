@@ -28,7 +28,10 @@ def login(driver):
     # login
     driver.get('https://www.karaoke-version.com/my/login.html')
     form_groups = driver.find_elements_by_class_name('form-group')
+    if form_groups == []:
+        form_groups = driver.find_elements_by_class_name('form__group')
     login_btn = None
+
     for form_group in form_groups:
         if form_group.text == 'Username or email':
             form_group.find_element_by_tag_name('input').send_keys(username)
@@ -53,6 +56,12 @@ def get_song(driver, songpath):
     # reset_button =  driver.find_element_by_id('mixer-refresh_btn')
     sound__controls = driver.find_element_by_class_name('sound__controls')
     mutes = sound__controls.find_elements_by_class_name('sound__controls__mute')
+
+    #turn on precount
+    precount_btn = captions.find_element_by_id('precount')
+    if not precount_btn.is_selected():
+        precount_btn.click()
+
     # first, mute everything
     for i in range(0, len(instruments)):
         # mute all
